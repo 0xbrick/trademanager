@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Crypto Portfolio Tracker</title>
+    <style>
+        .position {
+            border: 1px solid #ccc;
+            margin-bottom: 10px;
+            padding: 10px;
+        }
+        .order {
+            margin-left: 20px;
+        }
+        .orders-toggle {
+    cursor: pointer;
+    color: #007bff;
+    text-decoration: underline;
+}
+.orders-container {
+    display: none;
+    margin-top: 10px;
+}
+
+    </style>
+    <script>
+        var positionCount = 0;
+
+        window.onload = function() {
+            loadPositions();
+        };
+
+        function addPosition() {
+    positionCount++;
+    var positionContainer = document.createElement('div');
+    positionContainer.className = 'position';
+    positionContainer.id = 'position' + positionCount;
+
+    positionContainer.innerHTML = `
+        <h3>Position ${positionCount}: <input type="text" class="positionName" placeholder="Enter position name" oninput="savePositions()"></h3>
+        <label for="tokenPrice${positionCount}">Token Price:</label>
+        <input type="number" id="tokenPrice${positionCount}" step="any" oninput="savePositions()"><br><br>
+        <span class="orders-toggle" onclick="toggleOrders(${positionCount})">Toggle Orders</span>
+        <div id="ordersContainer${positionCount}" class="orders-container">
+            <!-- Orders will be added here -->
+        </div>
+        <button onclick="addOrder(${positionCount})" style="display:none;">Add Order</button><br><br>
+        <button onclick="calculateValues(${positionCount})">Calculate Position Value and Net Change</button>
+        <p id="positionValueInSol${positionCount}"></p>
+        <p id="netChangeInSol${positionCount}"></p>
+    `;
+
+    document.getElementById('positionsContainer').appendChild(positionContainer);
+    addOrder(positionCount); // Add the first order by default
+    savePositions();
+}
+
+
+        function addOrder(positionNumber) {
+            var ordersContainer = document.getElementById(`ordersContainer${positionNumber}`);
+            var orderNumber = ordersContainer.children.length + 1;
+            var orderDiv = document.createElement('div');
+            orderDiv.className = 'order';
+            orderDiv.id = `order${positionNumber}-${orderNumber}`;
+            orderDiv.innerHTML = `
+                <label for="tokenQuantity${positionNumber}-${orderNumber}">Token Quantity:</label>
+                <input type="number" id="tokenQuantity${positionNumber}-${orderNumber}" step="any" oninput="savePositions()"><br>
+                <label for="solSpent${positionNumber}-${orderNumber}">SOL Spent:</label>
+                <input type="number" id="solSpent${positionNumber}-${orderNumber}" step="any" oninput="savePositions()"><br>
+                <button onclick="removeOrder(${positionNumber}, ${orderNumber})">Remove Order</button><br><br>
+            `;
+            ordersContainer.appendChild(orderDiv);
+            savePositions();
+        }
+
+        function removeOrder(positionNumber, orderNumber) {
+            var orderDiv = document.getElementById(`order${positionNumber}-${orderNumber}`);
+            orderDiv.parentNode.removeChild(orderDiv);
+            savePositions();
+        }
+
+        function calculateValues(positionNumber) {
+            var tokenPrice = parseFloat(document.getElementById(`tokenPrice${positionNumber}`).value);
+            var ordersContainer = document.getElementById(`ordersContainer${positionNumber}`);
+            var orderElements = ordersContainer.getElementsByClassName('order');
+            var totalTokenQuantity = 0;
+            var totalSolSpent = 0;
+            for (var i = 0; i < orderElements.length; i++) {
+                var orderNumber = i + 1;
+                var tokenQuantity = parseFloat(document.getElementById(`tokenQuantity${positionNumber}-${orderNumber}`).value) || 0;
+                var solSpent = parseFloat(document.getElementById(`solSpent${positionNumber}-${orderNumber}`).value) || 0;
+                totalTokenQuantity += tokenQuantity;
+                totalSolSpent += solSpent;
+            }
+
+            var priceOfSol = parseFloat(document.getElementById('priceOfSol').value);
+            var positionValueInSol = (tokenPrice * totalTokenQuantity) / priceOfSol;
+            var netChangeInSol = positionValueInSol - totalSolSpent;
+
+            document.getElementById(`positionValueInSol${positionNumber}`).innerText = 'Position Value in SOL: ' + positionValueInSol.toFixed(2);
+            document.getElementById(`netChangeInSol${positionNumber}`).innerText = 'Net Change in SOL: ' + netChangeInSol.toFixed(2);
+        }
+
+        function savePositions() {
+            var positionsData = [];
+            var positionElements = document.querySelectorAll('.position');
+            positionElements.forEach(function(positionElement, index) {
+                var positionNumber = index + 1;
+                var orders = [];
+                var orderElements = positionElement.querySelectorAll('.order');
+                orderElements.forEach(function(orderElement, orderIndex) {
+                    var orderNumber = orderIndex + 1;
+                    var order = {
+                        tokenQuantity: document.getElementById(`tokenQuantity${positionNumber}-${orderNumber}`).value,
+                        solSpent: document.getElementById(`solSpent${positionNumber}-${orderNumber}`).value
+                    };
+                    orders.push(order);
+                });
+
+                var position = {
+                    name: positionElement.querySelector('.positionName').value,
+                    tokenPrice: document.getElementById(`tokenPrice${positionNumber}`).value,
+                    orders: orders
+                };
+                positionsData.push(position);
+            });
+            localStorage.setItem('positions', JSON.stringify(positionsData));
+        }
+
+        function loadPositions() {
+            var storedPositions = localStorage.getItem('positions');
+            if (storedPositions) {
+                var positionsData = JSON.parse(storedPositions);
+                positionsData.forEach(function(position, index) {
+                    addPosition();
+                    var positionNumber = index + 1;
+                    document.querySelector(`#position${positionNumber} .positionName`).value = position.name;
+                    document.getElementById(`tokenPrice${positionNumber}`).value = position.tokenPrice;
+                    position.orders.forEach(function(order, orderIndex) {
+                        addOrder(positionNumber);
+                        var orderNumber = orderIndex + 1;
+                        document.getElementById(`tokenQuantity${positionNumber}-${orderNumber}`).value = order.tokenQuantity;
+                        document.getElementById(`solSpent${positionNumber}-${orderNumber}`).value = order.solSpent;
+                    });
+                });
+            }
+        }
+    function toggleOrders(positionNumber) {
+        var ordersContainer = document.getElementById(`ordersContainer${positionNumber}`);
+        var displayStyle = ordersContainer.style.display;
+        ordersContainer.style.display = displayStyle === 'none' ? 'block' : 'none';
+}
+
+    </script>
+</head>
+<body>
+    <h2>Crypto Portfolio Tracker</h2>
+    <label for="priceOfSol">Price of SOL:</label>
+    <input type="number" id="priceOfSol" step="any" oninput="savePositions()"><br><br>
+    <button onclick="addPosition()">Add New Position</button>
+    <div id="positionsContainer"></div>
+</body>
+</html>
